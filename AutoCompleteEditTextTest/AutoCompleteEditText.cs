@@ -24,9 +24,6 @@ namespace AutoCompleteEditTextTest
         ArrayAdapter _adapter;
 
         List<string> _autoCompleteWords;
-        string _previousWord;
-        List<string> _previousList;
-        string[] _currentList = new string[0];
 
         public AutoCompleteEditText(Context context) :
             base(context)
@@ -69,36 +66,45 @@ namespace AutoCompleteEditTextTest
             };
 
             _autoCompleteArea = view.FindViewById<ListView>(Resource.Id.autocomplete_area);
-            _adapter = new ArrayAdapter(Context, Resource.Layout.listview_item, _currentList);
+            _adapter = new ArrayAdapter(Context, Resource.Layout.listview_item, new List<string>());
+            _adapter.SetNotifyOnChange(true);
             _autoCompleteArea.Adapter = _adapter;
             _autoCompleteArea.ItemClick += (sender, e) =>
             {
                 _inputField.Text = _autoCompleteArea.GetItemAtPosition(e.Position).ToString();
-                _currentList = new string[0];
+                _adapter.Clear();
                 _autoCompleteArea.Visibility = ViewStates.Gone;
             };
         }
 
         void SearchWord(string word)
         {
-            if(string.IsNullOrEmpty(word))
-            {
-                _currentList = new string[0];
-                _adapter = new ArrayAdapter(Context, Resource.Layout.listview_item, _currentList);
-                _autoCompleteArea.Adapter = _adapter;
-                return;
-            }
+            _adapter.Clear();
+            if (string.IsNullOrEmpty(word)) return;
 
-            _currentList = _autoCompleteWords.Where(s => IsSimilerWord(word, s)).Take(MaxSuggestCount).ToArray();
-            _adapter = new ArrayAdapter(Context, Resource.Layout.listview_item, _currentList);
-            _autoCompleteArea.Adapter = _adapter;
+            _adapter.AddAll(_autoCompleteWords.Where(s => IsSimilerWord(word, s)).Take(MaxSuggestCount).ToList());
         }
 
         bool IsSimilerWord(string inputWord, string targetWord)
         {
             if (targetWord.Contains(inputWord)) return true;
 
-            int searchTargetIndex = 0;
+            var mismatchCount = 0;
+
+            for (int i = 0; i < inputWord.Length; i++)
+            {
+                if (i == targetWord.Length) break;
+
+                if(inputWord[i] != targetWord[i])
+                {
+                    mismatchCount++;
+                    if (2 <= mismatchCount) break;
+                }
+            }
+
+            if (1 < inputWord.Length && mismatchCount <= 1) return true;
+
+            var searchTargetIndex = 0;
             for(int i = 0; i < inputWord.Length; i++)
             {
                 for(int j = searchTargetIndex; j < targetWord.Length; j++)
